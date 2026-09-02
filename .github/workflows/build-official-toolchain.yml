@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 150
     steps:
       - name: Checkout kernel source (R branch, official 4.14.190)
@@ -34,7 +34,8 @@ jobs:
             make binutils-aarch64-linux-gnu \
             bc bison flex \
             libssl-dev libelf-dev python3 \
-            cpio zip unzip ca-certificates
+            cpio zip unzip ca-certificates \
+            libtinfo5
 
       # ---- Snapdragon LLVM 10.0.7 (official LG kernel compiler) ----
       - name: Download Snapdragon LLVM 10.0.7 (official kernel compiler)

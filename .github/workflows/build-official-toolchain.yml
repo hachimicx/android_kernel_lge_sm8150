@@ -61,23 +61,24 @@ jobs:
           export PATH="$BINUTILS:$QCLANG:$PATH"
           export ARCH=arm64
           export SUBARCH=arm64
-          export CROSS_COMPILE=aarch64-linux-android-
-          export CLANG_TRIPLE=aarch64-linux-android-
+          # CROSS_COMPILE 用 gnu 名 (clang-android.sh 检测到 android target 会报错)
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          export CLANG_TRIPLE=aarch64-linux-gnu-
           export CC=clang
 
           # repo's own defconfig (depends-chain intact)
           mkdir -p out
           make O=out CC=clang ARCH=arm64 \
-            CROSS_COMPILE=aarch64-linux-android- \
-            CLANG_TRIPLE=aarch64-linux-android- \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
             vendor/flashlmdd_lao_com-perf_defconfig
 
           sed -i 's/CONFIG_LOCALVERSION="[^"]*"/CONFIG_LOCALVERSION="-perf+"/' out/.config
           grep CONFIG_LOCALVERSION out/.config
 
           make O=out CC=clang ARCH=arm64 \
-            CROSS_COMPILE=aarch64-linux-android- \
-            CLANG_TRIPLE=aarch64-linux-android- \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
             -j"$(nproc)"
 
       - name: Collect artifacts

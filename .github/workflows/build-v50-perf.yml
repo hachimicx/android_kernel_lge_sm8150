@@ -1,0 +1,83 @@
+name: Build V50 Kernel (perf)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - R
+    paths:
+      - 'arch/**'
+      - 'drivers/**'
+      - 'include/**'
+      - '**/Makefile'
+      - '.github/workflows/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout kernel source (R branch, official 4.14.190)
+        uses: actions/checkout@v4
+        with:
+          branch: R
+          fetch-depth: 1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            git curl wget \
+            make binutils-aarch64-linux-gnu \
+            bc bison flex \
+            libssl-dev libelf-dev \
+            libncurses5-dev \
+            python3 \
+            cpio zip unzip \
+            ca-certificates
+
+      - name: Setup Clang toolchain
+        run: |
+          # 使用上游 Clang 14 (由 Ubuntu 22.04 提供) + LLVM binutils
+          clang --version | head -1
+          which clang clang-14
+          echo "CLANG_TRIPLE=aarch64-linux-gnu-" >> "$GITHUB_ENV"
+          echo "CROSS_COMPILE=aarch64-linux-gnu-" >> "$GITHUB_ENV"
+
+      - name: Build kernel (perf defconfig)
+        run: |
+          set -e
+          # V50 (flashlmdd) 国际版 perf 配置
+          make O=out ARCH=arm64 \
+            CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- \
+            vendor/flashlmdd_lao_com-perf_defconfig
+
+          make O=out ARCH=arm64 \
+            CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- \
+            -j"$(nproc)" Image.gz-dtb
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p out-artifacts
+          cp out/arch/arm64/boot/Image.gz-dtb out-artifacts/ 2>/dev/null || true
+          cp out/arch/arm64/boot/Image      out-artifacts/ 2>/dev/null || true
+          cp out/arch/arm64/boot/dtb.img     out-artifacts/ 2>/dev/null || true
+          cp out/.config                     out-artifacts/ 2>/dev/null || true
+          ls -la out-artifacts/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: v50-kernel-perf-4.14.190
+          path: out-artifacts/
+          if-no-files-found: warn
+
+      - name: Attach to release (if tagged)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out-artifacts/*
+          generate_release_notes: true

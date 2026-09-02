@@ -46,14 +46,23 @@ jobs:
           ls "$HOME/toolchains/llvm-qc/bin/clang"
           echo "QCLANG=$HOME/toolchains/llvm-qc/bin" >> "$GITHUB_ENV"
 
-      # ---- GNU binutils 2.27 (bd24d23f, official linker) ----
-      - name: Download binutils 2.27 (aarch64-linux-android-4.9)
+      # ---- GNU binutils 2.27 (ld 2.27, official linker) ----
+      - name: Build binutils 2.27 for aarch64 (official ld)
         run: |
-          git clone --depth 1 \
-            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
-            "$HOME/toolchains/gcc-4.9"
-          ls "$HOME/toolchains/gcc-4.9/bin/" | grep -E "ld|ar" | head
-          echo "BINUTILS=$HOME/toolchains/gcc-4.9/bin" >> "$GITHUB_ENV"
+          mkdir -p "$HOME/binutils-2.27"
+          curl -L -o /tmp/binutils-2.27.tar.bz2 \
+            "https://mirrors.tuna.tsinghua.edu.cn/gnu/binutils/binutils-2.27.tar.bz2" || \
+          curl -L -o /tmp/binutils-2.27.tar.bz2 \
+            "https://ftp.gnu.org/gnu/binutils/binutils-2.27.tar.bz2"
+          tar xjf /tmp/binutils-2.27.tar.bz2 -C "$HOME/binutils-2.27" --strip-components=1
+          rm -f /tmp/binutils-2.27.tar.bz2
+          cd "$HOME/binutils-2.27"
+          ./configure --target=aarch64-linux-gnu --prefix="$HOME/toolchain-binutils" \
+            --disable-nls --disable-werror --quiet
+          make -j"$(nproc)" > /dev/null 2>&1
+          make install > /dev/null 2>&1
+          ls "$HOME/toolchain-binutils/bin/" | grep -E "ld|ar" | head
+          echo "BINUTILS=$HOME/toolchain-binutils/bin" >> "$GITHUB_ENV"
 
       - name: Build kernel (official toolchain, perf+)
         run: |

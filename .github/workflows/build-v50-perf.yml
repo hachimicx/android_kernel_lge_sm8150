@@ -75,12 +75,13 @@ jobs:
           export CC=clang
 
           mkdir -p out
+          # 使用从可开机 boot.img 提取的精确配置(含 LOCALVERSION=-perf)
           make O=out CC=clang ARCH=arm64 \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CLANG_TRIPLE=aarch64-linux-gnu- \
-            vendor/flashlmdd_lao_com-perf_defconfig
+            vendor/flashlmdd_lao_com-perf_boot.config
 
-          # 强制 LOCALVERSION = -perf+ (与官方 boot.img 一致)
+          # 强制 LOCALVERSION = -perf+ (与官方 boot.img 版本号一致)
           sed -i 's/CONFIG_LOCALVERSION="[^"]*"/CONFIG_LOCALVERSION="-perf+"/' out/.config
           echo "LOCALVERSION set to:" ; grep CONFIG_LOCALVERSION out/.config
 

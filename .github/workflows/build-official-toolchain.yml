@@ -75,15 +75,17 @@ jobs:
           export CLANG_TRIPLE=aarch64-linux-gnu-
           export CC=clang
 
-          # repo's own defconfig (depends-chain intact)
+          # 用官方 boot 提取的完整 IKCFG 配置 (与官方内核完全一致), 仅 LOCALVERSION=-perf+
           mkdir -p out
+          cp ikcfg-perfplus.config out/.config
+          grep -E '^CONFIG_LOCALVERSION|^CONFIG_64BIT_PADDR|^CONFIG_RCU_PANIC_ON_STALL|^CONFIG_PSTORE_PMSG' out/.config
+
           make O=out CC=clang ARCH=arm64 \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CLANG_TRIPLE=aarch64-linux-gnu- \
-            vendor/flashlmdd_lao_com-perf_defconfig
+            olddefconfig
 
-          sed -i 's/CONFIG_LOCALVERSION="[^"]*"/CONFIG_LOCALVERSION="-perf+"/' out/.config
-          grep CONFIG_LOCALVERSION out/.config
+          grep -E '^CONFIG_LOCALVERSION' out/.config
 
           make O=out CC=clang ARCH=arm64 \
             CROSS_COMPILE=aarch64-linux-gnu- \

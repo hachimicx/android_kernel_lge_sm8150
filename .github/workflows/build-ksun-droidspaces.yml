@@ -118,8 +118,9 @@ jobs:
             'CONFIG_KSU_SUSFS_SUS_MOUNT=y' \
             'CONFIG_KSU_SUSFS_TRY_UMOUNT=y' >> out/.config
 
-          # LOCALVERSION = -perf+ (single +)
+          # LOCALVERSION = -perf+ (single +, 关闭 AUTO 避免双加号)
           sed -i 's/CONFIG_LOCALVERSION="[^"]*"/CONFIG_LOCALVERSION="-perf+"/' out/.config
+          sed -i 's/^CONFIG_LOCALVERSION_AUTO=y/CONFIG_LOCALVERSION_AUTO=n/' out/.config
           grep -E "LOCALVERSION|SYSVIPC|USER_NS|CONFIG_KSU|SUSFS" out/.config | head -20
 
           make O=out CC=clang ARCH=arm64 \
@@ -143,9 +144,10 @@ jobs:
       - name: Collect artifacts
         run: |
           mkdir -p out-artifacts
-          cp out/arch/arm64/boot/Image.gz-dtb out-artifacts/ 2>/dev/null || true
-          cp out/arch/arm64/boot/Image      out-artifacts/ 2>/dev/null || true
-          cp out/.config                    out-artifacts/ 2>/dev/null || true
+          cp out/arch/arm64/boot/Image.gz      out-artifacts/ 2>/dev/null || true
+          cp out/arch/arm64/boot/Image         out-artifacts/ 2>/dev/null || true
+          cp out/arch/arm64/boot/Image.gz-dtb  out-artifacts/ 2>/dev/null || true
+          cp out/.config                       out-artifacts/ 2>/dev/null || true
           ls -la out-artifacts/
 
       - name: Upload artifact

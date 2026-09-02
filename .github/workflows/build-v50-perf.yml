@@ -79,8 +79,9 @@ jobs:
           # 从可开机 boot.img 提取的精确配置 -> 直接作为 .config 用(绕过 defconfig 机制)
           mkdir -p out
           cp arch/arm64/configs/vendor/flashlmdd_lao_com-perf_boot.config out/.config
+          # 确保 LOCALVERSION- = -perf+
           sed -i 's/CONFIG_LOCALVERSION="[^"]*"/CONFIG_LOCALVERSION="-perf+"/' out/.config
-          grep CONFIG_LOCALVERSION out/.config
+          grep -E "LOCALVERSION" out/.config
           # 需要旧内核的旧式 config 处理
           make O=out CC=clang ARCH=arm64 \
             CROSS_COMPILE=aarch64-linux-gnu- \

@@ -1,0 +1,96 @@
+name: Build V50 Kernel 4.14.190-perf+ (official toolchain)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - R
+    paths:
+      - 'arch/**'
+      - 'drivers/**'
+      - 'include/**'
+      - '**/Makefile'
+      - '.github/workflows/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - name: Checkout kernel source (R branch, official 4.14.190)
+        uses: actions/checkout@v4
+        with:
+          branch: R
+          fetch-depth: 1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            git curl wget \
+            make binutils-aarch64-linux-gnu \
+            bc bison flex \
+            libssl-dev libelf-dev python3 \
+            cpio zip unzip ca-certificates
+
+      # ---- Snapdragon LLVM 10.0.7 (official LG kernel compiler) ----
+      - name: Download Snapdragon LLVM 10.0.7 (official kernel compiler)
+        run: |
+          git clone --depth 1 \
+            https://github.com/sticpaper/Snapdragon-LLVM-ARM-Compiler-10.0.7-for-Android-NDK.git \
+            "$HOME/toolchains/llvm-qc"
+          ls "$HOME/toolchains/llvm-qc/bin/clang"
+          echo "QCLANG=$HOME/toolchains/llvm-qc/bin" >> "$GITHUB_ENV"
+
+      # ---- GNU binutils 2.27 (bd24d23f, official linker) ----
+      - name: Download binutils 2.27 (aarch64-linux-android-4.9)
+        run: |
+          git clone --depth 1 \
+            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
+            "$HOME/toolchains/gcc-4.9"
+          ls "$HOME/toolchains/gcc-4.9/bin/" | grep -E "ld|ar" | head
+          echo "BINUTILS=$HOME/toolchains/gcc-4.9/bin" >> "$GITHUB_ENV"
+
+      - name: Build kernel (official toolchain, perf+)
+        run: |
+          set -e
+          export PATH="$BINUTILS:$QCLANG:$PATH"
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-android-
+          export CLANG_TRIPLE=aarch64-linux-android-
+          export CC=clang
+
+          # repo's own defconfig (depends-chain intact)
+          mkdir -p out
+          make O=out CC=clang ARCH=arm64 \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CLANG_TRIPLE=aarch64-linux-android- \
+            vendor/flashlmdd_lao_com-perf_defconfig
+
+          sed -i 's/CONFIG_LOCALVERSION="[^"]*"/CONFIG_LOCALVERSION="-perf+"/' out/.config
+          grep CONFIG_LOCALVERSION out/.config
+
+          make O=out CC=clang ARCH=arm64 \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CLANG_TRIPLE=aarch64-linux-android- \
+            -j"$(nproc)"
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p out-artifacts
+          cp out/arch/arm64/boot/Image.gz out-artifacts/ 2>/dev/null || true
+          cp out/arch/arm64/boot/Image    out-artifacts/ 2>/dev/null || true
+          cp out/arch/arm64/boot/Image.gz-dtb out-artifacts/ 2>/dev/null || true
+          cp out/.config                  out-artifacts/ 2>/dev/null || true
+          ls -la out-artifacts/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: v50-kernel-4.14.190-perf-plus-official-toolchain
+          path: out-artifacts/
+          if-no-files-found: warn

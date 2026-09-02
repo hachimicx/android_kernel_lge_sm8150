@@ -37,15 +37,15 @@ jobs:
             cpio zip unzip \
             ca-certificates
 
-      # ---- Clang 10.0.7 for NDK : 官方 V50 内核源码同款工具链(2022) ----
+      # ---- Android NDK Clang 10.0.7 (r21e) : 官方 V50 boot.img 同款工具链 ----
       - name: Download Android NDK Clang 10.0.7 toolchain
         run: |
-          mkdir -p "$HOME/toolchains/clang-ndk"
-          curl -L -o /tmp/clang-ndk.zip \
+          mkdir -p "$HOME/toolchains"
+          curl -L -o /tmp/android-ndk-r21e.zip \
             "https://dl.google.com/android/repository/android-ndk-r21e-linux-x86_64.zip"
-          unzip -q /tmp/clang-ndk.zip -d "$HOME/toolchains"
-          rm -f /tmp/clang-ndk.zip
-          ls "$HOME/toolchains/" | grep ndk
+          unzip -q /tmp/android-ndk-r21e.zip -d "$HOME/toolchains"
+          rm -f /tmp/android-ndk-r21e.zip
+          ls "$HOME/toolchains/"
           echo "CLANG_BASE=$HOME/toolchains/android-ndk-r21e/toolchains/llvm/prebuilt/linux-x86_64" >> "$GITHUB_ENV"
 
       # ---- binutils 2.27 (GNU ld 2.27, 官方同款) ----
@@ -53,7 +53,9 @@ jobs:
         run: |
           mkdir -p "$HOME/binutils-2.27"
           curl -L -o /tmp/binutils-2.27.tar.bz2 \
-            "https://mirrors.tuna.tsinghua.edu.cn/gnu/binutils/binutils-2.27.tar.bz2"
+            "https://mirrors.tuna.tsinghua.edu.cn/gnu/binutils/binutils-2.27.tar.bz2" || \
+          curl -L -o /tmp/binutils-2.27.tar.bz2 \
+            "https://ftp.gnu.org/gnu/binutils/binutils-2.27.tar.bz2"
           tar xjf /tmp/binutils-2.27.tar.bz2 -C "$HOME/binutils-2.27" --strip-components=1
           rm -f /tmp/binutils-2.27.tar.bz2
           cd "$HOME/binutils-2.27"
@@ -74,16 +76,16 @@ jobs:
           export CLANG_TRIPLE=aarch64-linux-gnu-
           export CC=clang
 
+          # 从可开机 boot.img 提取的精确配置 -> 直接作为 .config 用(绕过 defconfig 机制)
           mkdir -p out
-          # 使用从可开机 boot.img 提取的精确配置(含 LOCALVERSION=-perf)
+          cp arch/arm64/configs/vendor/flashlmdd_lao_com-perf_boot.config out/.config
+          sed -i 's/CONFIG_LOCALVERSION="[^"]*"/CONFIG_LOCALVERSION="-perf+"/' out/.config
+          grep CONFIG_LOCALVERSION out/.config
+          # 需要旧内核的旧式 config 处理
           make O=out CC=clang ARCH=arm64 \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CLANG_TRIPLE=aarch64-linux-gnu- \
-            vendor/flashlmdd_lao_com-perf_boot.config
-
-          # 强制 LOCALVERSION = -perf+ (与官方 boot.img 版本号一致)
-          sed -i 's/CONFIG_LOCALVERSION="[^"]*"/CONFIG_LOCALVERSION="-perf+"/' out/.config
-          echo "LOCALVERSION set to:" ; grep CONFIG_LOCALVERSION out/.config
+            olddefconfig
 
           make O=out CC=clang ARCH=arm64 \
             CROSS_COMPILE=aarch64-linux-gnu- \
